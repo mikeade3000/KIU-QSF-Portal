@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KIU QSF Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --navy:#0a1f4d; --navy-2:#13306f; --gold:#c9a24a; --gold-2:#e6c97a;
+    --paper:#fffdf7; --ink:#1c2233; --muted:#5f6475; --line:#e8dfc8;
+    --ok:#1d6b3a; --ok-bg:#eaf6ee; --bad:#9f1d1d; --bad-bg:#fbeceb; --warn:#7a5200; --warn-bg:#fff5df;
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%}
+  body{
+    margin:0; color:var(--ink);
+    font:17px/1.55 "Times New Roman", Times, "Liberation Serif", serif;
+    background:#0a1f4d;
+  }
+  body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background-color:#0a1f4d;
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, rgba(201,162,74,.35), transparent 60%),
+      radial-gradient(900px 600px at 110% 10%, rgba(70,130,220,.35), transparent 60%),
+      radial-gradient(800px 700px at 50% 120%, rgba(150,60,120,.30), transparent 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23e6c97a' stroke-opacity='.10' stroke-width='1'%3E%3Cpath d='M40 4 L76 40 L40 76 L4 40 Z'/%3E%3Ccircle cx='40' cy='40' r='10'/%3E%3C/g%3E%3C/svg%3E"),
+      linear-gradient(160deg, #081634 0%, #0f2a63 45%, #1a2f6e 70%, #2a1d52 100%);
+  }
+  header{text-align:center;color:#fff;padding:38px 16px 26px}
+  .crest{width:64px;height:64px;margin:0 auto 10px;display:block;filter:drop-shadow(0 4px 10px rgba(0,0,0,.35))}
+  header .uni{letter-spacing:.32em;font-size:13px;color:var(--gold-2);text-transform:uppercase;margin:0}
+  header h1{margin:6px 0 0;font-size:34px;font-weight:700;letter-spacing:.01em;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+  header .rule{width:180px;height:2px;margin:14px auto;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+  header p{margin:0;font-style:italic;color:#dfe6f7;font-size:16px}
+  main{max-width:980px;margin:0 auto;padding:0 16px 40px}
+  .card{background:var(--paper);border:1px solid rgba(201,162,74,.45);border-top:3px solid var(--gold);border-radius:14px;padding:20px 22px;margin-bottom:18px;box-shadow:0 18px 40px rgba(3,10,30,.35),0 2px 6px rgba(3,10,30,.2)}
+  .card h2{margin:0 0 12px;font-size:21px;color:var(--navy);font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .rules{margin:0;padding-left:22px;color:var(--muted);font-size:16px}
+  .rules li{margin-bottom:5px}
+  .rules b{color:var(--ink)}
+  #drop{display:block;border:2px dashed var(--gold);border-radius:12px;padding:34px 16px;text-align:center;cursor:pointer;background:linear-gradient(180deg,#fffaf0,#fbf3df);transition:transform .15s, box-shadow .15s, background .15s}
+  #drop:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(201,162,74,.25)}
+  #drop.over{background:#f6e9c6;border-style:solid}
+  #drop strong{color:var(--navy);font-size:20px}
+  #drop .icon{font-size:34px;display:block;margin-bottom:6px}
+  #file{display:none}
+  .verdict{border-radius:14px;padding:18px 22px;font-size:21px;font-weight:700;margin-bottom:18px;box-shadow:0 18px 40px rgba(3,10,30,.35);border:1px solid;border-left-width:8px}
+  .verdict small{display:block;font-weight:400;font-size:15.5px;margin-top:4px;font-style:italic}
+  .verdict.pass{background:#effaf2;color:var(--ok);border-color:#8fcfa4}
+  .verdict.fail{background:#fdf1f0;color:var(--bad);border-color:#e7a29c}
+  .verdict.pending{background:#fff8e6;color:var(--warn);border-color:var(--gold)}
+  ul.msgs{margin:0;padding:0;list-style:none}
+  ul.msgs li{padding:8px 12px;border-radius:8px;margin-bottom:7px;font-size:16px;border-left:4px solid}
+  li.e{background:var(--bad-bg);color:var(--bad);border-color:#d9534f}
+  li.w{background:var(--warn-bg);color:var(--warn);border-color:var(--gold)}
+  li.o{background:var(--ok-bg);color:var(--ok);border-color:#3f9a5e}
+  .tblwrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:16px}
+  th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--navy);color:#fff;font-weight:700;letter-spacing:.02em}
+  th:first-child{border-top-left-radius:8px} th:last-child{border-top-right-radius:8px}
+  tr:nth-child(even) td{background:#fbf6ea}
+  .tag{display:inline-block;padding:1px 10px;border-radius:20px;font-size:14px;font-weight:700;white-space:nowrap;border:1px solid}
+  .tag.ok{background:var(--ok-bg);color:var(--ok);border-color:#9fd8b2}
+  .tag.bad{background:var(--bad-bg);color:var(--bad);border-color:#f1aaa3}
+  .tag.warn{background:var(--warn-bg);color:var(--warn);border-color:#ecd08a}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center}
+  button{font-family:inherit;background:linear-gradient(180deg,var(--navy-2),var(--navy));color:#fff;border:1px solid var(--gold);border-radius:30px;padding:10px 22px;font-size:16px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.3);transition:transform .15s}
+  button:hover{transform:translateY(-1px)}
+  button.ghost{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy);font-weight:700}
+  .muted{color:var(--muted);font-size:14.5px;font-style:italic}
+  #stamp{text-align:center;color:#d5dcef}
+  #result{display:none}
+  label.chk{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:9px;cursor:pointer;font-size:16.5px;background:#fffaf0;transition:background .15s,border-color .15s}
+  label.chk:hover{border-color:var(--gold)}
+  label.chk input{width:20px;height:20px;margin-top:3px;flex:none;accent-color:var(--ok)}
+  label.chk.done{background:var(--ok-bg);border-color:#9fd8b2}
+  .logo{display:inline-block;background:#fff;border-radius:14px;padding:10px 18px;box-shadow:0 10px 26px rgba(0,0,0,.35),0 0 0 3px rgba(201,162,74,.65)}
+  .logo img{display:block;height:74px;width:auto}
+  header h1{margin-top:16px}
+  nav.tabs{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 auto 22px;padding:0 16px}
+  nav.tabs button{background:rgba(255,255,255,.08);color:#e9eefb;border:1px solid rgba(230,201,122,.55);box-shadow:none;padding:10px 22px}
+  nav.tabs button.active{background:linear-gradient(180deg,var(--gold-2),var(--gold));color:var(--navy);font-weight:700}
+  .tab{display:none} .tab.active{display:block}
+  input[type=text],input[type=email],input[type=password],input[type=search],select{font-family:inherit;font-size:16px;padding:9px 12px;border:1px solid #d9cda9;border-radius:8px;background:#fff;color:var(--ink);min-width:0}
+  input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+  .field label{font-weight:700;color:var(--navy)}
+  button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .status{margin-top:10px;font-size:16px}
+  .status.err{color:var(--bad)} .status.ok{color:var(--ok)}
+  .receipt{border:2px solid #8fcfa4;background:#effaf2;border-radius:12px;padding:16px 18px;color:var(--ok)}
+  .receipt .ref{font-size:24px;font-weight:700;letter-spacing:.03em;color:var(--navy);word-break:break-all}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar input[type=search]{flex:1 1 220px}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .stat{flex:1 1 140px;background:#fbf6ea;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  .stat b{display:block;font-size:26px;color:var(--navy)}
+  .stat span{color:var(--muted);font-size:14px}
+  button.sm{padding:5px 14px;font-size:14px;box-shadow:none}
+  a.lnk{color:var(--navy);font-weight:700}
+  tr.sup td{color:#8a8f9c}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  footer{text-align:center;color:#c4cde6;font-size:14px;font-style:italic;padding:0 16px 28px}
+  @media (max-width:600px){ header .uni{letter-spacing:.14em;font-size:12px} header h1{font-size:26px} .card{padding:16px} .verdict{font-size:18px} }
+  @media print{
+    header,#pick,.noprint,footer,#tabAdmin{display:none!important}
+    body{background:#fff!important} body::before{display:none} .card,.verdict{box-shadow:none} #stamp{color:#555}
+    label.chk input{display:none} label.chk::before{content:"☐";font-size:18px} label.chk.done::before{content:"☑"}
+    th{background:#eee!important;color:#000!important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><img src="data:image/jpeg;base64,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" alt="Kampala International University — Exploring the Heights"></div>
+  <h1>QSF Verification &amp; Submission Portal</h1>
+  <div class="rule"></div>
+  <p>School of Mathematics and Computing (SOMAC) · Verify your Question Submission Form, confirm HoD moderation, and submit it to the Question Bank</p>
+</header>
+<nav class="tabs noprint">
+  <button type="button" data-tab="tabLecturer" class="active">Lecturer: Verify &amp; Submit</button>
+  <button type="button" data-tab="tabAdmin">Admin: Submissions</button>
+</nav>
+<main>
+<section class="tab active" id="tabLecturer">
+  <section class="card" id="pick">
+    <h2>1. Choose your completed QSF (.docx)</h2>
+    <label id="drop" for="file">
+      <span class="icon">📄</span><strong>Click to choose</strong> or drag and drop the Word file here<br>
+      <span class="muted">The file is checked inside your browser. Nothing is sent until you press <b>Submit</b> at the end.</span>
+    </label>
+    <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    <h2 style="margin-top:24px">What is checked</h2>
+    <ul class="rules" id="rulesList"></ul>
+  </section>
+
+  <section id="result">
+    <div class="verdict" id="verdict"></div>
+    <div class="card" id="hodCard">
+      <h2>Head of Department (HoD) moderation — required</h2>
+      <label class="chk"><input type="checkbox" id="hodUnit"><span>I confirm that my <b>Head of Department has moderated this course unit</b> for upload into the Exam Paper Generator.</span></label>
+      <label class="chk"><input type="checkbox" id="hodBank"><span>I confirm that my <b>Head of Department has moderated these questions</b> for submission to the Question Bank.</span></label>
+      <p class="muted" id="hodNote"></p>
+    </div>
+    <div class="card noprint" id="submitCard">
+      <h2>Submit to the Question Bank</h2>
+      <div id="submitForm">
+        <p class="muted" id="submitHint">The Submit button unlocks when the form passes every check and both HoD boxes are ticked.</p>
+        <div class="field">
+          <label for="email">Your email address (optional, recorded with the submission)</label>
+          <input type="email" id="email" placeholder="e.g. jane.okello@kiu.ac.ug" autocomplete="email">
+        </div>
+        <button id="submitBtn" disabled>Submit to the Question Bank</button>
+        <div class="status" id="submitStatus"></div>
+      </div>
+      <div class="receipt" id="receipt" style="display:none"></div>
+    </div>
+    <div class="card">
+      <h2>Errors to fix</h2>
+      <ul class="msgs" id="errors"></ul>
+    </div>
+    <div class="card" id="warnCard">
+      <h2>Warnings (allowed, but please check)</h2>
+      <ul class="msgs" id="warnings"></ul>
+    </div>
+    <div class="card">
+      <h2>A. Course &amp; submission details</h2>
+      <div class="tblwrap"><table id="hdrTbl"></table></div>
+    </div>
+    <div class="card">
+      <h2>B. Question sets by topic</h2>
+      <div class="tblwrap"><table id="topicTbl"></table></div>
+    </div>
+    <div class="row noprint">
+      <button class="ghost" id="again">Check another file</button>
+      <button class="ghost" id="print">Print / save report as PDF</button>
+    </div>
+    <p class="muted" id="stamp"></p>
+  </section>
+</section>
+<section class="tab" id="tabAdmin">
+  <div class="card" id="loginCard">
+    <h2>Administrator sign-in</h2>
+    <form id="loginForm">
+      <div class="field">
+        <label for="adminPw">Admin password</label>
+        <input type="password" id="adminPw" autocomplete="current-password" required>
+      </div>
+      <button type="submit" id="loginBtn">Sign in</button>
+      <div class="status" id="loginStatus"></div>
+    </form>
+  </div>
+  <div id="dash" style="display:none">
+    <div class="card">
+      <h2>Submissions received</h2>
+      <div class="stats">
+        <div class="stat"><b id="stTotal">0</b><span>submissions in total</span></div>
+        <div class="stat"><b id="stLatest">0</b><span>current (latest) forms</span></div>
+        <div class="stat"><b id="stCourses">0</b><span>different course codes</span></div>
+        <div class="stat"><b id="stShown">0</b><span>shown with current filters</span></div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Search course code, title, lecturer, reference…">
+        <select id="fDept"><option value="">All departments</option></select>
+        <select id="fStatus"><option value="Latest">Latest versions only</option><option value="">All versions</option></select>
+      </div>
+      <div class="toolbar">
+        <button id="zipBtn">Download selected (ZIP)</button>
+        <button class="ghost" id="csvBtn">Download list (CSV)</button>
+        <button class="ghost" id="refreshBtn">Refresh</button>
+        <button class="ghost" id="logoutBtn">Sign out</button>
+      </div>
+      <p class="muted" id="links"></p>
+      <div class="status" id="dashStatus"></div>
+      <div class="tblwrap"><table id="subTbl"></table></div>
+    </div>
+  </div>
+</section>
+</main>
+<footer>Kampala International University · Examinations Quality Assurance · Explore the Heights</footer>
+
+<script>
+/* ===================== Settings (edit here) ===================== */
+const CONFIG = {
+  MIN_TOPICS: 9,            // the template's minimum number of topics; MORE is allowed, FEWER is not
+  QUESTIONS_PER_TOPIC: 5,   // exactly this many questions in every topic (Question 1 compulsory)
+  SCHOOL_CODE: 'SOMAC',
+  REQUIRE_MARKS: true       // every question must have marks
+};
+/* ================================================================= */
+
+const RULES = [
+  'The file is a Word <b>.docx</b> made from the KIU QSF template (older <b>.doc</b> files: open in Word and Save As .docx).',
+  'Every field in <b>Section A</b> is filled: Programme, Course Code, Course Title, Academic Year, Level, Semester, Lecturer (Full Name), School, Department, Total Topics Covered, Date of Submission.',
+  'At least <b>' + CONFIG.MIN_TOPICS + ' topics</b> are completed, and at least as many as stated in "Total Topics Covered". More topics are allowed; fewer are not.',
+  'Every topic has a <b>topic name</b>, and no two topics share the same name.',
+  'Every topic has <b>exactly ' + CONFIG.QUESTIONS_PER_TOPIC + ' questions</b>, with Question 1 still marked "(Compulsory)".',
+  'Every question has <b>marks</b> (a number greater than 0).',
+  'No question is repeated word-for-word anywhere in the form (the app deletes repeats, leaving that topic short).',
+  'No placeholder text is left in a question cell (e.g. "Type question here", "...", "N/A").',
+  'You confirm that your <b>Head of Department has moderated the unit</b> for upload, and <b>has moderated the questions</b> for submission to the Question Bank (two tick boxes on the report).'
+];
+document.getElementById('rulesList').innerHTML = RULES.map(r => '<li>' + r + '</li>').join('');
+
+/* ---------- small helpers ---------- */
+const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const kids = (node, names) => Array.from(node.childNodes).filter(n => n.namespaceURI === W && names.includes(n.localName));
+// direct block children, looking through content controls (w:sdt) and custom XML wrappers
+function blocks(node, names) {
+  const out = [];
+  for (const n of Array.from(node.childNodes)) {
+    if (n.nodeType !== 1) continue;
+    if (n.namespaceURI === W && names.includes(n.localName)) out.push(n);
+    else if (n.namespaceURI === W && (n.localName === 'sdt' || n.localName === 'customXml' || n.localName === 'sdtContent' || n.localName === 'smartTag'))
+      out.push(...blocks(n, names));
+  }
+  return out;
+}
+function textOf(node) {
+  let s = '';
+  const walk = n => {
+    if (n.nodeType !== 1) return;
+    if (n.namespaceURI === W) {
+      if (n.localName === 't') { s += n.textContent; return; }
+      if (n.localName === 'tab') { s += ' '; return; }
+      if (n.localName === 'br' || n.localName === 'cr') { s += '\n'; return; }
+      if (n.localName === 'p' && s && !s.endsWith('\n')) s += '\n';
+      if (n.localName === 'delText') return;           // tracked deletions are not text
+    }
+    for (const c of Array.from(n.childNodes)) walk(c);
+  };
+  walk(node);
+  return s.replace(/[ \t ]+/g, ' ').replace(/\n\s*/g, '\n').trim();
+}
+// equations, pictures, embedded objects or nested tables count as question content even without typed text
+function hasRich(node) {
+  const all = node.getElementsByTagName('*');
+  for (const n of Array.from(all)) {
+    const ln = n.localName;
+    if (ln === 'oMath' || ln === 'oMathPara' || ln === 'drawing' || ln === 'pict' || ln === 'object' || (ln === 'tbl' && n.namespaceURI === W)) return true;
+  }
+  return false;
+}
+const rowsOf = tbl => blocks(tbl, ['tr']);
+const cellsOf = tr => blocks(tr, ['tc']);
+const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9#\/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const marksNum = m => { const v = parseFloat(String(m || '').replace(/[^\d.]/g, '')); return isFinite(v) && v > 0 ? v : 0; };
+
+// same placeholder / sub-part rules the Exam Paper Generator uses
+const PLACEHOLDER = /^\s*\[?\s*(?:(?:type|enter|insert|write|add|paste)\b.{0,40}\b(?:question|here)\b.*|\.{3,}|_{3,}|-{2,}|n\/?a|nil|none|tbd|question\s*\d*\s*(?:here)?|question text|your question)\s*\]?\s*$/i;
+const SUB_NUM = /^\s*(?:\d+\s*[\.\-]?\s*)?\(?\s*([a-h]|i{1,3}|iv|v|vi{0,3}|ix|x)\s*[\).]?\s*$/i;
+const TOPIC_KEY = /^(topic|topic title|topic name|unit|chapter|module|theme)\s*(\d+|[ivxlc]+)?\s*:?$/i;
+const TOPIC_LINE = /^\s*(?:topic|unit|chapter|module|theme)\s*(\d+|[ivxlc]+)?\s*[:\-–.]\s*(\S.{1,150})$/i;
+const TOPIC_LINE_EMPTY = /^\s*(?:topic|unit|chapter|module|theme)\s*(\d+|[ivxlc]+)\s*[:\-–.]?\s*$/i;
+
+function questionColumns(tr) {
+  const hs = cellsOf(tr).map(c => norm(textOf(c)));
+  const find = re => hs.findIndex(h => re.test(h));
+  let q = find(/^(question|questions|question text|questions text|item|items|task|tasks|question description)$/);
+  if (q < 0) q = hs.findIndex(h => /question/.test(h) && !/\b(no|number|num|nos)\b|#/.test(h));
+  if (q < 0) return null;
+  const num = find(/^(#|no|nos|s\/?n|sn|q no|qn|q|number|question no|question number|qno|item no)$/);
+  const marks = find(/mark|score|point|^max|^allocation/);
+  if (num < 0 && marks < 0) return null;
+  return { num, q, marks };
+}
+
+const HEADER_FIELDS = [
+  ['programme', 'Programme', /^(programme|program|programme of study|programme name)$/],
+  ['code', 'Course Code', /^(course|course unit|module|unit) code$/],
+  ['title', 'Course Title', /^(course|course unit|module|unit) (title|name)$/],
+  ['academicYear', 'Academic Year', /^academic (year|session)$/],
+  ['level', 'Level', /^(level|year of study|year|level of study)$/],
+  ['semester', 'Semester', /^semester$/],
+  ['lecturer', 'Lecturer (Full Name)', /^(course )?lecturers?( s)?( full name| name| names)?$|^name of (the )?lecturer$/],
+  ['school', 'School', /^(school|faculty|college)$/],
+  ['department', 'Department', /^(department|dept|department name)$/],
+  ['topics', 'Total Topics Covered', /^total (topics|weeks)( covered)?$/],
+  ['date', 'Date of Submission', /^date( of submission)?$|^submission date$/]
+];
+
+/* ---------- read the form ---------- */
+function readForm(docXml) {
+  const doc = new DOMParser().parseFromString(docXml, 'application/xml');
+  const body = doc.getElementsByTagNameNS(W, 'body')[0];
+  if (!body) throw new Error('This file has no readable Word document body.');
+  const header = {};
+  const topics = [];            // {label, name, nameSource, rows:[...], questions:[...], headerMap}
+  let pending = null;           // {label, name}
+  let headingCount = 0;
+
+  for (const el of blocks(body, ['p', 'tbl'])) {
+    if (el.localName === 'p') {
+      const tx = textOf(el).replace(/\n/g, ' ');
+      let m = tx.match(TOPIC_LINE);
+      if (m) { pending = { label: 'Topic ' + (m[1] || (headingCount + 1)), name: m[2].trim().replace(/\s+/g, ' ') }; headingCount++; continue; }
+      m = tx.match(TOPIC_LINE_EMPTY);
+      if (m) { pending = { label: 'Topic ' + m[1], name: '' }; headingCount++; }
+      continue;
+    }
+    const rs = rowsOf(el);
+    if (!rs.length) continue;
+    // Section A key/value rows (first value wins)
+    rs.forEach(r => {
+      const cs = cellsOf(r); if (cs.length < 2) return;
+      const key = norm(textOf(cs[0]).replace(/[:*]+\s*$/, '').replace(/[()]/g, ' '));
+      const f = HEADER_FIELDS.find(h => h[2].test(key));
+      if (f && !(f[0] in header)) header[f[0]] = textOf(cs[1]);
+    });
+    // topic rows + question blocks (Word may join touching tables into one)
+    let seg = null;
+    for (let ri = 0; ri < rs.length; ri++) {
+      const cs = cellsOf(rs[ri]); const k0 = textOf(cs[0] || rs[ri]);
+      let hm = questionColumns(rs[ri]);
+      if (hm && ri > 0 && (cs.some(c => /^\s*\d+(?:\.\d+)?\s*$/.test(textOf(c))) || hm.marks === hm.q)) hm = null;
+      if (!hm && cs.length >= 2 && TOPIC_KEY.test(k0)) {
+        const nm = textOf(cs[1]).replace(/\s+/g, ' ').trim();
+        pending = { label: (pending && pending.label) || ('Topic ' + (topics.length + 1)), name: nm || (pending ? pending.name : '') };
+        seg = null; continue;
+      }
+      if (hm) {
+        seg = { label: (pending && pending.label) || ('Topic ' + (topics.length + 1)), name: pending ? pending.name : '', map: hm, rows: [] };
+        topics.push(seg); pending = null; continue;
+      }
+      if (seg) seg.rows.push(rs[ri]);
+    }
+  }
+  topics.forEach(buildQuestions);
+  return { header, topics };
+}
+
+function buildQuestions(t) {
+  const map = t.map;
+  const numOf = cs => (map.num >= 0 && cs[map.num]) ? textOf(cs[map.num]) : '';
+  const numbered = t.rows.some(r => /\d/.test(numOf(cellsOf(r))));
+  t.questions = []; t.emptySlots = []; t.placeholders = []; t.compulsoryLabel = false;
+  let cur = null;
+  t.rows.forEach((r, i) => {
+    const cs = cellsOf(r); const qc = cs[map.q];
+    const numCell = numOf(cs);
+    if (i === 0 && /compuls/i.test(numCell)) t.compulsoryLabel = true;
+    if (!qc) return;
+    const txt = textOf(qc); const rich = hasRich(qc);
+    const slot = (numCell.match(/^\s*(\d+)/) || [])[1] || String(i + 1);
+    if (!txt && !rich) { if (!/^\s*$/.test(numCell) && !SUB_NUM.test(numCell)) t.emptySlots.push(slot); return; }
+    if (!rich && PLACEHOLDER.test(txt)) { t.placeholders.push(slot); return; }
+    const mk = (map.marks >= 0 && cs[map.marks]) ? textOf(cs[map.marks]) : '';
+    const subM = numCell.match(SUB_NUM);
+    const isSub = !!subM && !/^\s*\d+\s*$/.test(numCell);
+    if (cur && (isSub || (numbered && !numCell.trim()))) {      // sub-part / continuation row
+      cur.text += '\n' + txt;
+      if (marksNum(mk)) cur.marks = marksNum(cur.marks) + marksNum(mk);
+      cur.parts++; return;
+    }
+    let marks = marksNum(mk);
+    if (!marks) { const tm = txt.match(/\(\s*(\d+(?:\.\d+)?)\s*(?:marks?|mks?)\s*\)\s*$/i) || txt.match(/total\s*(?:marks?)?\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(?:marks?)?\s*$/i); if (tm) marks = +tm[1]; }
+    cur = { slot, text: txt || '[equation / picture]', marks, marksRaw: mk, parts: 1, compulsory: /compuls/i.test(numCell) };
+    t.questions.push(cur);
+  });
+}
+
+/* ---------- verify ---------- */
+function verify(form) {
+  const E = [], Wn = [], h = form.header;
+
+  // Section A
+  const hdrRows = HEADER_FIELDS.map(([k, label]) => {
+    const v = (h[k] || '').trim();
+    let st = v ? 'ok' : 'bad';
+    if (!(k in h)) { E.push('Section A: the "' + label + '" row is missing from the form. Use the official template and do not delete rows.'); }
+    else if (!v) E.push('Section A: "' + label + '" is empty.');
+    return { k, label, v, st };
+  });
+  const get = k => hdrRows.find(r => r.k === k);
+  const code = get('code');
+  if (code.v && !/[A-Za-z]{2,}\s*-?\s*\d{3,4}/.test(code.v)) { code.st = 'warn'; Wn.push('Course Code "' + code.v + '" does not look like a course code (e.g. BCS 2201).'); }
+  const ay = get('academicYear');
+  if (ay.v && !/(20\d\d)\s*[\/\-–]\s*(20)?\d\d/.test(ay.v)) { ay.st = 'warn'; Wn.push('Academic Year "' + ay.v + '" should be written like 2025/2026.'); }
+  const sch = get('school');
+  if (sch.v && !(new RegExp('\\b' + CONFIG.SCHOOL_CODE + '\\b', 'i').test(sch.v) || /mathematics.*computing/i.test(sch.v))) { sch.st = 'warn'; Wn.push('School "' + sch.v + '" is not ' + CONFIG.SCHOOL_CODE + '. The app uses this box to choose the school\'s paper rules.'); }
+  const lect = get('lecturer');
+  if (lect.v && !/[A-Za-z]{2,}.*\s+[A-Za-z]{2,}/.test(lect.v)) { lect.st = 'warn'; Wn.push('Lecturer: please give the full name (first name and surname).'); }
+
+  // required number of topics
+  const declared = parseInt(String(get('topics').v).replace(/[^\d]/g, ''), 10);
+  let required = CONFIG.MIN_TOPICS;
+  if (get('topics').v && !isFinite(declared)) { get('topics').st = 'bad'; E.push('Section A: "Total Topics Covered" must be a number (e.g. 9).'); }
+  else if (isFinite(declared)) {
+    if (declared < CONFIG.MIN_TOPICS) { get('topics').st = 'bad'; E.push('Section A: "Total Topics Covered" is ' + declared + ', but at least ' + CONFIG.MIN_TOPICS + ' topics are required.'); }
+    required = Math.max(CONFIG.MIN_TOPICS, declared);
+  }
+
+  // Section B
+  const seenQ = new Map(), seenName = new Map();
+  const rows = form.topics.map((t, i) => {
+    const issues = [], notes = [];
+    const tag = t.label + (t.name ? ' (' + t.name + ')' : '');
+    const n = t.questions.length;
+    const blank = n === 0 && !t.name;
+    if (blank) return { t, n, blank: true, issues: [], notes: [], status: 'blank' };
+    if (!t.name) issues.push('topic name is missing');
+    else {
+      const key = t.name.toLowerCase().replace(/\s+/g, ' ');
+      if (seenName.has(key)) issues.push('same topic name as ' + seenName.get(key) + ' (the app merges them into one topic)');
+      else seenName.set(key, t.label);
+    }
+    if (t.map.marks < 0) issues.push('the "Marks" column is missing from the question table');
+    if (n !== CONFIG.QUESTIONS_PER_TOPIC) issues.push('has ' + n + ' question' + (n !== 1 ? 's' : '') + '; exactly ' + CONFIG.QUESTIONS_PER_TOPIC + ' are required');
+    if (t.emptySlots.length) issues.push('question' + (t.emptySlots.length > 1 ? 's ' : ' ') + t.emptySlots.join(', ') + ' ' + (t.emptySlots.length > 1 ? 'are' : 'is') + ' empty');
+    if (t.placeholders.length) issues.push('question' + (t.placeholders.length > 1 ? 's ' : ' ') + t.placeholders.join(', ') + ' still contain' + (t.placeholders.length > 1 ? '' : 's') + ' placeholder text');
+    if (!t.compulsoryLabel && n) issues.push('Question 1 is no longer labelled "1 (Compulsory)". Do not edit the # column');
+    if (CONFIG.REQUIRE_MARKS) {
+      const noMarks = t.questions.filter(q => !q.marks).map(q => q.slot);
+      if (noMarks.length) issues.push('no marks for question' + (noMarks.length > 1 ? 's ' : ' ') + noMarks.join(', '));
+    }
+    t.questions.forEach(q => {
+      const k = q.text.toLowerCase().replace(/[^a-z0-9]+/g, '');
+      if (!k || k.length < 4) return;
+      if (seenQ.has(k)) issues.push('question ' + q.slot + ' repeats ' + seenQ.get(k) + ' word-for-word (the app deletes repeats)');
+      else seenQ.set(k, t.label + ' Q' + q.slot);
+      if (q.parts > 1) notes.push('Q' + q.slot + ' has ' + q.parts + ' sub-part rows (joined into one question)');
+    });
+    issues.forEach(x => E.push(tag + ': ' + x + '.'));
+    const total = t.questions.reduce((s, q) => s + (q.marks || 0), 0);
+    return { t, n, total, issues, notes, status: issues.length ? 'bad' : 'ok' };
+  });
+
+  const complete = rows.filter(r => r.status === 'ok').length;
+  const started = rows.filter(r => r.status !== 'blank').length;
+  rows.filter(r => r.status === 'blank').forEach(r => Wn.push(r.t.label + ' is blank and will be ignored.'));
+  if (!form.topics.length) E.push('No question tables were found. Use the official KIU QSF template and keep the "# | Question | Marks" heading row.');
+  if (complete < required) {
+    E.unshift('Only ' + complete + ' complete topic' + (complete !== 1 ? 's' : '') + ' found; at least ' + required + ' are required' +
+      (isFinite(declared) && declared > CONFIG.MIN_TOPICS ? ' (you declared ' + declared + ' in "Total Topics Covered")' : '') + '.');
+  }
+  if (isFinite(declared) && started > declared) Wn.push(started + ' topics were filled in but "Total Topics Covered" says ' + declared + '. Extra topics are allowed; consider updating the number.');
+
+  // marks consistency across questions (balanced papers)
+  const marks = rows.flatMap(r => r.status === 'blank' ? [] : r.t.questions.map(q => q.marks)).filter(Boolean);
+  const distinct = Array.from(new Set(marks));
+  if (distinct.length > 1) Wn.push('Questions carry different marks (' + distinct.sort((a, b) => a - b).join(', ') + '). Papers are balanced automatically, but equal marks give the fairest papers.');
+
+  return { E, Wn, hdrRows, rows, required, complete, declared };
+}
+
+/* ---------- render ---------- */
+let last = null;
+const hodUnit = document.getElementById('hodUnit'), hodBank = document.getElementById('hodBank');
+function renderVerdict() {
+  if (!last) return;
+  const { fileName, res } = last;
+  const filePass = res.E.length === 0;
+  const hodOK = hodUnit.checked && hodBank.checked;
+  [hodUnit, hodBank].forEach(c => c.closest('label').classList.toggle('done', c.checked));
+  const missing = [!hodUnit.checked && 'unit moderated for upload', !hodBank.checked && 'questions moderated for the Question Bank'].filter(Boolean);
+  document.getElementById('hodNote').textContent = hodOK
+    ? 'HoD moderation confirmed on ' + new Date().toLocaleString() + '.'
+    : 'Tick both boxes once your HoD has moderated the unit and its questions. The form cannot be marked ready without them.';
+  const v = document.getElementById('verdict');
+  let head, cls;
+  if (!filePass) { cls = 'fail'; head = '✖ NOT READY — ' + res.E.length + ' problem' + (res.E.length !== 1 ? 's' : '') + ' to fix before uploading'; }
+  else if (!hodOK) { cls = 'pending'; head = '⏳ TEMPLATE PASSED — awaiting HoD moderation confirmation (' + missing.join('; ') + ')'; }
+  else { cls = 'pass'; head = '✔ READY TO SUBMIT — all requirements are met and HoD moderation is confirmed'; }
+  v.className = 'verdict ' + cls;
+  v.innerHTML = head + '<small>' + esc(fileName) + ' · ' + res.complete + ' complete topic' + (res.complete !== 1 ? 's' : '') + ' (minimum ' + res.required + ')' +
+    (!filePass && !hodOK ? ' · HoD moderation still to be confirmed' : '') + '</small>';
+}
+hodUnit.addEventListener('change', renderVerdict);
+hodBank.addEventListener('change', renderVerdict);
+
+function render(fileName, res, file) {
+  last = { fileName, res, file: file || null };
+  hodUnit.checked = false; hodBank.checked = false;   // confirm afresh for every file
+  renderVerdict();
+  resetSubmit();
+  const list = (id, arr, cls, emptyMsg) => {
+    document.getElementById(id).innerHTML = arr.length ? arr.map(x => '<li class="' + cls + '">' + esc(x) + '</li>').join('') : '<li class="o">' + esc(emptyMsg) + '</li>';
+  };
+  list('errors', res.E, 'e', 'No errors found.');
+  list('warnings', res.Wn, 'w', 'No warnings.');
+  const tagOf = st => st === 'ok' ? '<span class="tag ok">OK</span>' : st === 'warn' ? '<span class="tag warn">Check</span>' : st === 'blank' ? '<span class="tag warn">Blank</span>' : '<span class="tag bad">Fix</span>';
+  document.getElementById('hdrTbl').innerHTML = '<tr><th>Field</th><th>Value</th><th>Status</th></tr>' +
+    res.hdrRows.map(r => '<tr><td>' + esc(r.label) + '</td><td>' + (esc(r.v) || '<span class="muted">(empty)</span>') + '</td><td>' + tagOf(r.st) + '</td></tr>').join('');
+  document.getElementById('topicTbl').innerHTML = '<tr><th>Block</th><th>Topic name</th><th>Questions</th><th>Marks</th><th>Status</th></tr>' +
+    (res.rows.length ? res.rows.map(r => '<tr><td>' + esc(r.t.label) + '</td><td>' + (esc(r.t.name) || '<span class="muted">(none)</span>') +
+      (r.notes && r.notes.length ? '<div class="muted">' + esc(r.notes.join('; ')) + '</div>' : '') + '</td><td>' + r.n + ' / ' + CONFIG.QUESTIONS_PER_TOPIC +
+      '</td><td>' + (r.total || '–') + '</td><td>' + tagOf(r.status) + '</td></tr>').join('') : '<tr><td colspan="5" class="muted">No topic tables found.</td></tr>');
+  document.getElementById('stamp').textContent = 'Checked on ' + new Date().toLocaleString() + ' · KIU QSF Portal';
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('pick').style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+async function check(file) {
+  try {
+    if (!/\.docx$/i.test(file.name)) throw new Error(/\.doc$/i.test(file.name)
+      ? 'This is an older Word 97-2003 (.doc) file. Open it in Word and choose File > Save As > Word Document (.docx), then check again.'
+      : 'Please choose a Word .docx file (the KIU QSF template).');
+    if (typeof JSZip === 'undefined') throw new Error('The checker could not load (no internet connection?). Refresh the page and try again.');
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const part = zip.file('word/document.xml');
+    if (!part) throw new Error('This file is not a valid Word document (word/document.xml is missing).');
+    const res = verify(readForm(await part.async('string')));
+    render(file.name, res, file);
+  } catch (err) {
+    render(file.name, { E: [err.message || String(err)], Wn: [], hdrRows: [], rows: [], required: CONFIG.MIN_TOPICS, complete: 0 });
+  }
+}
+
+const input = document.getElementById('file'), drop = document.getElementById('drop');
+input.addEventListener('change', () => { if (input.files[0]) check(input.files[0]); });
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) check(f); });
+document.getElementById('again').onclick = () => { input.value = ''; document.getElementById('result').style.display = 'none'; document.getElementById('pick').style.display = 'block'; };
+document.getElementById('print').onclick = () => window.print();
+
+/* ===================== Tabs ===================== */
+const tabBtns = Array.from(document.querySelectorAll('nav.tabs button'));
+function showTab(id) {
+  tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === id));
+}
+tabBtns.forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+/* ===================== Server calls ===================== */
+function gs(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    if (!(window.google && google.script && google.script.run)) {
+      reject(new Error('Submitting needs the deployed Google Apps Script web app link. It does not work when this file is opened directly.'));
+      return;
+    }
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(new Error((e && e.message) || String(e))))[fn](...args);
+  });
+}
+function bufToB64(buf) {
+  const bytes = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function saveB64(r) {
+  const bin = atob(r.base64); const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  saveBlob(new Blob([u], { type: r.mime || 'application/octet-stream' }), r.name);
+}
+function saveBlob(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+const busy = (btn, on, label) => { if (on) { btn.dataset.label = btn.textContent; btn.innerHTML = '<span class="spin"></span>' + esc(label || 'Working…'); btn.disabled = true; } else { btn.textContent = btn.dataset.label || btn.textContent; btn.disabled = false; } };
+
+/* ===================== Lecturer: submit ===================== */
+const submitBtn = document.getElementById('submitBtn'), submitStatus = document.getElementById('submitStatus');
+function updateSubmit() {
+  const ready = !!(last && last.file && last.res.E.length === 0 && hodUnit.checked && hodBank.checked);
+  submitBtn.disabled = !ready;
+  document.getElementById('submitHint').textContent = ready
+    ? 'Everything is in order. Submit to send this form to the Question Bank.'
+    : 'The Submit button unlocks when the form passes every check and both HoD boxes are ticked.';
+}
+hodUnit.addEventListener('change', updateSubmit);
+hodBank.addEventListener('change', updateSubmit);
+submitBtn.onclick = async () => {
+  const { file, res } = last; const hv = k => ((res.hdrRows.find(r => r.k === k) || {}).v || '').trim();
+  const email = document.getElementById('email').value.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { submitStatus.className = 'status err'; submitStatus.textContent = 'Please check the email address.'; return; }
+  submitStatus.className = 'status'; submitStatus.textContent = '';
+  busy(submitBtn, true, 'Submitting…');
+  try {
+    const counted = res.rows.filter(r => r.status === 'ok');
+    const payload = {
+      fileName: file.name, base64: bufToB64(await file.arrayBuffer()), verified: true,
+      hodUnit: hodUnit.checked, hodBank: hodBank.checked, email,
+      meta: { code: hv('code'), title: hv('title'), programme: hv('programme'), department: hv('department'), school: hv('school'),
+        academicYear: hv('academicYear'), semester: hv('semester'), level: hv('level'), lecturer: hv('lecturer'),
+        topics: counted.length, questions: counted.reduce((s, r) => s + r.n, 0) }
+    };
+    const r = await gs('submitForm', payload);
+    document.getElementById('submitForm').style.display = 'none';
+    const rc = document.getElementById('receipt'); rc.style.display = 'block';
+    rc.innerHTML = '<b>✔ Submitted successfully on ' + esc(r.at) + '.</b><br>Your submission reference:<div class="ref">' + esc(r.ref) + '</div>' +
+      '<span class="muted">Keep this reference. Print or save this page as PDF for your records. Stored as: ' + esc(r.storedName) + '</span>';
+    document.getElementById('stamp').textContent += ' · Submitted: ' + r.ref;
+  } catch (e) {
+    busy(submitBtn, false); submitStatus.className = 'status err'; submitStatus.textContent = e.message;
+    return;
+  }
+  busy(submitBtn, false); submitBtn.disabled = true;
+};
+function resetSubmit() {
+  document.getElementById('submitForm').style.display = 'block';
+  document.getElementById('receipt').style.display = 'none';
+  submitStatus.textContent = ''; updateSubmit();
+}
+
+/* ===================== Admin ===================== */
+let adminToken = '', allRows = [];
+try { adminToken = sessionStorage.getItem('kiuAdm') || ''; } catch (e) {}
+const loginStatus = document.getElementById('loginStatus'), dashStatus = document.getElementById('dashStatus');
+document.getElementById('loginForm').onsubmit = async e => {
+  e.preventDefault(); const btn = document.getElementById('loginBtn');
+  loginStatus.className = 'status'; loginStatus.textContent = ''; busy(btn, true, 'Signing in…');
+  try {
+    adminToken = await gs('adminLogin', document.getElementById('adminPw').value);
+    try { sessionStorage.setItem('kiuAdm', adminToken); } catch (e) {}
+    document.getElementById('adminPw').value = '';
+    await loadSubs();
+  } catch (err) { loginStatus.className = 'status err'; loginStatus.textContent = err.message; }
+  busy(btn, false);
+};
+function signedOut(msg) {
+  adminToken = ''; try { sessionStorage.removeItem('kiuAdm'); } catch (e) {}
+  document.getElementById('dash').style.display = 'none'; document.getElementById('loginCard').style.display = 'block';
+  if (msg) { loginStatus.className = 'status err'; loginStatus.textContent = msg; }
+}
+async function adminCall(fn, ...a) {
+  try { return await gs(fn, adminToken, ...a); }
+  catch (e) { if (/session has expired/i.test(e.message)) signedOut(e.message); throw e; }
+}
+async function loadSubs() {
+  const d = await adminCall('adminList');
+  allRows = d.rows || [];
+  document.getElementById('loginCard').style.display = 'none'; document.getElementById('dash').style.display = 'block';
+  document.getElementById('links').innerHTML = 'Stored in Google Drive: <a class="lnk" target="_blank" href="' + esc(d.folderUrl) + '">open submissions folder</a> · <a class="lnk" target="_blank" href="' + esc(d.sheetUrl) + '">open the log sheet</a>';
+  const depts = Array.from(new Set(allRows.map(r => String(r['Department'] || '').trim()).filter(Boolean))).sort();
+  const sel = document.getElementById('fDept'), cur = sel.value;
+  sel.innerHTML = '<option value="">All departments</option>' + depts.map(x => '<option>' + esc(x) + '</option>').join('');
+  sel.value = depts.includes(cur) ? cur : '';
+  drawSubs();
+}
+function filtered() {
+  const q = document.getElementById('q').value.trim().toLowerCase(), dep = document.getElementById('fDept').value, st = document.getElementById('fStatus').value;
+  return allRows.filter(r => (!st || r['Status'] === st) && (!dep || String(r['Department']).trim() === dep) &&
+    (!q || ['Reference', 'Course Code', 'Course Title', 'Lecturer', 'Programme', 'Department', 'Lecturer Email'].some(k => String(r[k] || '').toLowerCase().includes(q))));
+}
+function drawSubs() {
+  const rows = filtered();
+  document.getElementById('stTotal').textContent = allRows.length;
+  document.getElementById('stLatest').textContent = allRows.filter(r => r['Status'] === 'Latest').length;
+  document.getElementById('stCourses').textContent = new Set(allRows.map(r => String(r['Course Code']).toUpperCase().replace(/\s+/g, ''))).size;
+  document.getElementById('stShown').textContent = rows.length;
+  const t = document.getElementById('subTbl');
+  if (!rows.length) { t.innerHTML = '<tr><td class="muted">' + (allRows.length ? 'No submissions match the filters.' : 'No submissions yet.') + '</td></tr>'; return; }
+  t.innerHTML = '<tr><th><input type="checkbox" id="selAll" checked title="Select all"></th><th>Submitted</th><th>Course</th><th>Lecturer</th><th>Department</th><th>Year · Sem</th><th>Topics / Qs</th><th>Status</th><th></th></tr>' +
+    rows.map(r => '<tr class="' + (r['Status'] === 'Superseded' ? 'sup' : '') + '"><td><input type="checkbox" class="sel" checked data-id="' + esc(r['File ID']) + '"></td>' +
+      '<td>' + esc(r['Submitted At']) + '<div class="muted">' + esc(r['Reference']) + '</div></td>' +
+      '<td><b>' + esc(r['Course Code']) + '</b><div>' + esc(r['Course Title']) + '</div></td>' +
+      '<td>' + esc(r['Lecturer']) + (r['Lecturer Email'] ? '<div class="muted">' + esc(r['Lecturer Email']) + '</div>' : '') + '</td>' +
+      '<td>' + esc(r['Department']) + '</td><td>' + esc(r['Academic Year']) + ' · ' + esc(r['Semester']) + '</td>' +
+      '<td>' + esc(r['Topics']) + ' / ' + esc(r['Questions']) + '</td>' +
+      '<td><span class="tag ' + (r['Status'] === 'Latest' ? 'ok' : 'warn') + '">' + esc(r['Status']) + '</span></td>' +
+      '<td><button class="sm dl" data-id="' + esc(r['File ID']) + '">Download</button></td></tr>').join('');
+  document.getElementById('selAll').onchange = e => t.querySelectorAll('.sel').forEach(c => c.checked = e.target.checked);
+  t.querySelectorAll('button.dl').forEach(b => b.onclick = async () => {
+    busy(b, true, '…'); dashStatus.textContent = '';
+    try { saveB64(await adminCall('adminDownload', b.dataset.id)); }
+    catch (e) { dashStatus.className = 'status err'; dashStatus.textContent = e.message; }
+    busy(b, false);
+  });
+}
+['q', 'fDept', 'fStatus'].forEach(id => document.getElementById(id).addEventListener('input', drawSubs));
+document.getElementById('refreshBtn').onclick = async e => { const b = e.currentTarget; busy(b, true, 'Refreshing…'); try { await loadSubs(); } catch (err) { dashStatus.className = 'status err'; dashStatus.textContent = err.message; } busy(b, false); };
+document.getElementById('logoutBtn').onclick = () => { gs('adminLogout', adminToken).catch(() => {}); signedOut(''); };
+document.getElementById('zipBtn').onclick = async e => {
+  const b = e.currentTarget; const ids = Array.from(document.querySelectorAll('#subTbl .sel:checked')).map(c => c.dataset.id).filter(Boolean);
+  dashStatus.textContent = '';
+  if (!ids.length) { dashStatus.className = 'status err'; dashStatus.textContent = 'Tick at least one submission to download.'; return; }
+  busy(b, true, 'Preparing ZIP (' + ids.length + ')…');
+  try { saveB64(await adminCall('adminDownloadZip', ids)); dashStatus.className = 'status ok'; dashStatus.textContent = ids.length + ' file' + (ids.length !== 1 ? 's' : '') + ' downloaded as ZIP.'; }
+  catch (err) { dashStatus.className = 'status err'; dashStatus.textContent = err.message; }
+  busy(b, false);
+};
+document.getElementById('csvBtn').onclick = () => {
+  const rows = filtered(); if (!rows.length) return;
+  const cols = Object.keys(rows[0]).filter(k => k !== 'File ID');
+  const cell = v => { let s = String(v == null ? '' : v); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = '﻿' + [cols.join(',')].concat(rows.map(r => cols.map(c => cell(r[c])).join(','))).join('\r\n');
+  saveBlob(new Blob([csv], { type: 'text/csv' }), 'KIU_QSF_Submissions_' + new Date().toISOString().slice(0, 10) + '.csv');
+};
+if (adminToken) loadSubs().catch(() => signedOut(''));
+</script>
+</body>
+</html>
