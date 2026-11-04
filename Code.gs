@@ -26,7 +26,11 @@ const HEADERS = ['Reference', 'Submitted At', 'Status', 'Course Code', 'Course T
   'HoD Moderated Unit', 'HoD Moderated Questions', 'Original File Name', 'Stored File Name', 'File ID', 'File Link'];
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  // the HTML file may be named "Index" or "index" in the Apps Script editor
+  let page;
+  try { page = HtmlService.createHtmlOutputFromFile('Index'); }
+  catch (e) { page = HtmlService.createHtmlOutputFromFile('index'); }
+  return page
     .setTitle('KIU QSF Verifier & Submission')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
