@@ -224,6 +224,23 @@
 <footer>Kampala International University · Examinations Quality Assurance · Explore the Heights</footer>
 
 <script>
+/* Discourage casual source viewing: right-click menu, F12, Ctrl+U, Ctrl+S, Ctrl+Shift+I/J/C/K (and Mac equivalents) */
+(function () {
+  const stop = e => { e.preventDefault(); e.stopPropagation(); return false; };
+  document.addEventListener('contextmenu', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;   // keep copy/paste menu in input boxes
+    stop(e);
+  }, true);
+  document.addEventListener('keydown', e => {
+    const k = (e.key || '').toLowerCase(), mod = e.ctrlKey || e.metaKey;
+    if (k === 'f12' || e.keyCode === 123) return stop(e);
+    if (mod && (e.shiftKey || e.altKey) && ['i', 'j', 'c', 'k'].includes(k)) return stop(e);   // developer tools / console / inspector
+    if (mod && ['u', 's'].includes(k)) return stop(e);                                         // view source / save page
+  }, true);
+  document.addEventListener('dragstart', e => { if (e.target.tagName === 'IMG') stop(e); }, true);
+})();
+</script>
+<script>
 /* ===================== Settings (edit here) ===================== */
 const CONFIG = {
   MIN_TOPICS: 9,            // the template's minimum number of topics; MORE is allowed, FEWER is not
