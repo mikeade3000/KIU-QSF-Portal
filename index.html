@@ -569,14 +569,24 @@ function showTab(id) {
 tabBtns.forEach(b => b.onclick = () => showTab(b.dataset.tab));
 
 /* ===================== Server calls ===================== */
+// Google Apps Script web app that stores submissions (Drive + Google Sheet)
+const API_URL = 'https://script.google.com/macros/s/AKfycbxtU7KzjiIUwOTjAOP9RK3nYQ55L9dcHyNNYksxJuC5ojLWey_XUWMXTaL0On2cb4dV/exec';
 function gs(fn, ...args) {
-  return new Promise((resolve, reject) => {
-    if (!(window.google && google.script && google.script.run)) {
-      reject(new Error('Submitting needs the deployed Google Apps Script web app link. It does not work when this file is opened directly.'));
-      return;
-    }
-    google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(new Error((e && e.message) || String(e))))[fn](...args);
-  });
+  // inside the Apps Script page: call the server directly
+  if (window.google && google.script && google.script.run) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(new Error((e && e.message) || String(e))))[fn](...args);
+    });
+  }
+  // anywhere else (GitHub Pages, a downloaded copy): call the /exec link
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: fn, args }), redirect: 'follow' })
+    .catch(() => { throw new Error('Could not reach the KIU submission server. Check your internet connection and try again.'); })
+    .then(r => r.text())
+    .then(t => {
+      let d; try { d = JSON.parse(t); } catch (e) { throw new Error('The submission server is not set up correctly (it did not return data). Ask the administrator to redeploy the Apps Script with the latest Code.gs.'); }
+      if (!d.ok) throw new Error(d.error || 'The server reported an error.');
+      return d.result;
+    });
 }
 function bufToB64(buf) {
   const bytes = new Uint8Array(buf); let s = '';

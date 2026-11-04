@@ -36,6 +36,24 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/* ---------------- API for the GitHub-hosted page ----------------
+ * The page on GitHub Pages sends:  POST <this /exec URL>   body = {"action": "...", "args": [...]}
+ * (as text/plain, so the browser sends it without a CORS pre-flight) and receives JSON back.
+ */
+const API_ACTIONS = { submitForm, adminLogin, adminLogout, adminList, adminDownload, adminDownloadZip };
+function doPost(e) {
+  let out;
+  try {
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    const fn = API_ACTIONS[req.action];
+    if (!fn) throw new Error('Unknown request.');
+    out = { ok: true, result: fn.apply(null, Array.isArray(req.args) ? req.args : []) };
+  } catch (err) {
+    out = { ok: false, error: (err && err.message) || String(err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
 /* ---------------- storage ---------------- */
 function setup() {
   const f = folder_(), s = sheet_();
